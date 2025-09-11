@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>データ収集</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #999; padding: 6px; text-align: center; }
+    th { background: #eee; }
+    input[type="text"] { width: 300px; padding: 6px; }
+    button { margin: 5px; padding: 6px 12px; }
+  </style>
+</head>
+<body>
+  <h1>データ収集</h1>
+
+  <h2>データ入力</h2>
+  <input type="text" id="dataInput" placeholder="例: 123, 45, 678">
+  <button id="addBtn">追加</button>
+
+  <h2>データ一覧</h2>
+  <table id="dataTable">
+    <thead>
+      <tr><th>行番号</th><th>データ</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div style="margin-top:20px;">
+    <button onclick="location.href='analyze.html'">解析へ</button>
+    <button onclick="location.href='delete.html'">削除へ</button>
+  </div>
+
+  <script>
+    const input = document.getElementById("dataInput");
+    const addBtn = document.getElementById("addBtn");
+    const tableBody = document.querySelector("#dataTable tbody");
+
+    // localStorageからロード
+    let data = JSON.parse(localStorage.getItem("csvData") || "[]");
+    renderTable();
+
+    // データ追加
+    addBtn.addEventListener("click", () => {
+      const value = input.value.trim();
+      if (!value) {
+        alert("データを入力してください。");
+        return;
+      }
+      const row = value.split(",").map(v => v.trim());
+      data.push(row);
+      input.value = "";
+      saveData();
+      renderTable();
+    });
+
+    function saveData() {
+      localStorage.setItem("csvData", JSON.stringify(data));
+    }
+
+    function renderTable() {
+      tableBody.innerHTML = "";
+      data.forEach((row, i) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${i + 1}</td><td>${row.join(", ")}</td>`;
+        tableBody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
