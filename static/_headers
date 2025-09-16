@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: 
+  Content-Security-Policy:
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com;
     frame-src https://accounts.google.com;
