@@ -91,6 +91,8 @@ function drawPieChart(data, totalCount) {
   }
 
   const ctx = document.getElementById('pieChart').getContext('2d');
+
+  // 円グラフのサイズを画面に合わせてレスポンシブに描画
   chartInstance = new Chart(ctx, {
     type: 'pie',
     data: {
@@ -99,6 +101,21 @@ function drawPieChart(data, totalCount) {
         data: values,
         backgroundColor: labels.map(() => `hsl(${Math.random() * 360}, 70%, 70%)`)
       }]
+    },
+    options: {
+      responsive: true, // レスポンシブ対応
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          callbacks: {
+            label: (tooltipItem) => {
+              return `${tooltipItem.label}: ${tooltipItem.raw} 回`;
+            }
+          }
+        }
+      }
     }
   });
 }
@@ -151,3 +168,4 @@ function uploadToDrive(accessToken) {
       alert('❌ Driveアップロードに失敗しました');
     });
 }
+
