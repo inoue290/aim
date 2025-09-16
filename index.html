@@ -2,71 +2,154 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>データ収集</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>当選回転数分析</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #999; padding: 6px; text-align: center; }
-    th { background: #eee; }
-    input[type="text"] { width: 300px; padding: 6px; }
-    button { margin: 5px; padding: 6px 12px; }
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    .machine-entry {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    @media screen and (min-width: 600px) {
+      input[type="number"] {
+        width: 18%;
+        margin-right: 1%;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>データ収集</h1>
 
-  <h2>データ入力</h2>
-  <input type="text" id="dataInput" placeholder="例: 123, 45, 678">
-  <button id="addBtn">追加</button>
+  <h1>当選回転数分析</h1>
 
-  <h2>データ一覧</h2>
-  <table id="dataTable">
-    <thead>
-      <tr><th>行番号</th><th>データ</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div id="machineContainer"></div>
+  <button onclick="addMachine()">＋ 台を追加</button>
+  <br><br>
+  <button onclick="analyze()">分析する</button>
+  <button onclick="downloadCSV()">CSVダウンロード</button>
 
-  <div style="margin-top:20px;">
-    <button onclick="location.href='analyze.html'">解析へ</button>
-    <button onclick="location.href='delete.html'">削除へ</button>
-  </div>
+  <h2>分析結果（区分50ごとの当選率）</h2>
+  <canvas id="pieChart" width="400" height="400"></canvas>
 
   <script>
-    const input = document.getElementById("dataInput");
-    const addBtn = document.getElementById("addBtn");
-    const tableBody = document.querySelector("#dataTable tbody");
+    let resultCounts = {};
 
-    // localStorageからロード
-    let data = JSON.parse(localStorage.getItem("csvData") || "[]");
-    renderTable();
+    function addMachine() {
+      const container = document.getElementById('machineContainer');
+      const index = container.children.length + 1;
 
-    // データ追加
-    addBtn.addEventListener("click", () => {
-      const value = input.value.trim();
-      if (!value) {
-        alert("データを入力してください。");
-        return;
-      }
-      const row = value.split(",").map(v => v.trim());
-      data.push(row);
-      input.value = "";
-      saveData();
-      renderTable();
-    });
-
-    function saveData() {
-      localStorage.setItem("csvData", JSON.stringify(data));
+      const div = document.createElement('div');
+      div.className = 'machine-entry';
+      div.innerHTML = `
+        <label>台番号 ${index}</label>
+        <input type="text" placeholder="例：A001" class="machine-id" />
+        <label>回転数（最大5件）</label><br>
+        <input type="number" class="rotation" placeholder="回転数1" />
+        <input type="number" class="rotation" placeholder="回転数2" />
+        <input type="number" class="rotation" placeholder="回転数3" />
+        <input type="number" class="rotation" placeholder="回転数4" />
+        <input type="number" class="rotation" placeholder="回転数5" />
+      `;
+      container.appendChild(div);
     }
 
-    function renderTable() {
-      tableBody.innerHTML = "";
-      data.forEach((row, i) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${i + 1}</td><td>${row.join(", ")}</td>`;
-        tableBody.appendChild(tr);
+    function analyze() {
+      const machineDivs = document.querySelectorAll('.machine-entry');
+      const maxPerMachine = 5;
+      const machineData = {};
+      const allValues = [];
+
+      machineDivs.forEach(div => {
+        const machineId = div.querySelector('.machine-id').value.trim();
+        const rotations = [...div.querySelectorAll('.rotation')];
+        if (!machineId) return;
+
+        const validValues = rotations
+          .map(r => parseInt(r.value.trim()))
+          .filter(v => !isNaN(v));
+
+        machineData[machineId] = validValues.slice(0, maxPerMachine);
+        allValues.push(...machineData[machineId]);
+      });
+
+      // 分析：50G区分でカウント
+      const maxRange = Math.max(...allValues, 0);
+      const bins = Math.ceil(maxRange / 50);
+      resultCounts = {};
+
+      for (let i = 0; i < bins; i++) {
+        resultCounts[i] = 0;
+      }
+
+      for (let num of allValues) {
+        const binIndex = Math.floor(num / 50);
+        resultCounts[binIndex]++;
+      }
+
+      drawPieChart(resultCounts, allValues.length);
+    }
+
+    function drawPieChart(data, totalCount) {
+      const labels = Object.keys(data).map(i => `${i * 50}〜${(i + 1) * 50 - 1}G`);
+      const values = Object.values(data);
+      const percents = values.map(v => ((v / totalCount) * 100).toFixed(2));
+
+      const ctx = document.getElementById('pieChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels.map((label, idx) => `${label} (${percents[idx]}%)`),
+          datasets: [{
+            data: values,
+            backgroundColor: labels.map(() => `hsl(${Math.random() * 360}, 70%, 70%)`)
+          }]
+        }
       });
     }
+
+    function downloadCSV() {
+      const csvRows = [
+        ['区分', '当選回数']
+      ];
+
+      for (const [binIndex, count] of Object.entries(resultCounts)) {
+        const rangeLabel = `${binIndex * 50}〜${(parseInt(binIndex) + 1) * 50 - 1}G`;
+        csvRows.push([rangeLabel, count]);
+      }
+
+      const csvContent = csvRows.map(e => e.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "当選回転数分析.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // 最初に1台分表示
+    window.onload = () => addMachine();
   </script>
 </body>
 </html>
+
