@@ -7,31 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-    }
-    .machine-entry {
-      margin-bottom: 20px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      padding: 8px;
-      margin-top: 4px;
-      margin-bottom: 8px;
-      box-sizing: border-box;
-    }
-    button {
-      padding: 10px 15px;
-      font-size: 16px;
-      margin: 5px 5px 10px 0;
-    }
-    canvas {
-      max-width: 100%;
-    }
+    /* 省略（スタイルはそのままでOK） */
   </style>
 </head>
 <body>
@@ -50,138 +26,54 @@
   <canvas id="pieChart" width="400" height="400"></canvas>
 
   <script>
-    const CLIENT_ID = '773727067609-lmgihr4fq73ph1o27co2su9ed7rhqn31.apps.googleusercontent.com'; // ここは自分のクライアントIDに変更
+    const CLIENT_ID = '773727067609-lmgihr4fq73ph1o27co2su9ed7rhqn31.apps.googleusercontent.com';
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
 
     let resultCounts = {};
     let chartInstance = null;
 
-    // 台データ入力欄を追加
-    function addMachine() {
-      const container = document.getElementById('machineContainer');
-      const index = container.children.length + 1;
+    function addMachine() { /* 省略 */ }
 
-      const div = document.createElement('div');
-      div.className = 'machine-entry';
-      div.innerHTML = `
-        <label>台番号 ${index}</label>
-        <input type="text" placeholder="例：A001" class="machine-id" />
-        <label>回転数（最大5件）</label><br>
-        <input type="number" class="rotation" placeholder="回転数1" />
-        <input type="number" class="rotation" placeholder="回転数2" />
-        <input type="number" class="rotation" placeholder="回転数3" />
-        <input type="number" class="rotation" placeholder="回転数4" />
-        <input type="number" class="rotation" placeholder="回転数5" />
-      `;
-      container.appendChild(div);
-    }
+    function analyze() { /* 省略 */ }
 
-    // 入力データから区分50ごとの当選回数を集計してグラフ描画
-    function analyze() {
-      const machineDivs = document.querySelectorAll('.machine-entry');
-      const maxPerMachine = 5;
-      const machineData = {};
-      const allValues = [];
+    function drawPieChart(data, totalCount) { /* 省略 */ }
 
-      machineDivs.forEach(div => {
-        const machineId = div.querySelector('.machine-id').value.trim();
-        const rotations = [...div.querySelectorAll('.rotation')];
-        if (!machineId) return;
+    function generateCSV() { /* 省略 */ }
 
-        const validValues = rotations
-          .map(r => parseInt(r.value.trim()))
-          .filter(v => !isNaN(v));
+    function downloadCSV() { /* 省略 */ }
 
-        machineData[machineId] = validValues.slice(0, maxPerMachine);
-        allValues.push(...machineData[machineId]);
-      });
-
-      const maxRange = Math.max(...allValues, 0);
-      const bins = Math.ceil(maxRange / 50);
-      resultCounts = {};
-
-      for (let i = 0; i < bins; i++) {
-        resultCounts[i] = 0;
-      }
-
-      for (let num of allValues) {
-        const binIndex = Math.floor(num / 50);
-        resultCounts[binIndex]++;
-      }
-
-      drawPieChart(resultCounts, allValues.length);
-    }
-
-    // 円グラフ描画
-    function drawPieChart(data, totalCount) {
-      const labels = Object.keys(data).map(i => `${i * 50}〜${(parseInt(i) + 1) * 50 - 1}G`);
-      const values = Object.values(data);
-      const percents = values.map(v => ((v / totalCount) * 100).toFixed(2));
-
-      if (chartInstance) {
-        chartInstance.destroy();
-      }
-
-      const ctx = document.getElementById('pieChart').getContext('2d');
-      chartInstance = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: labels.map((label, idx) => `${label} (${percents[idx]}%)`),
-          datasets: [{
-            data: values,
-            backgroundColor: labels.map(() => `hsl(${Math.random() * 360}, 70%, 70%)`)
-          }]
-        }
-      });
-    }
-
-    // CSVデータ生成
-    function generateCSV() {
-      const csvRows = [['区分', '当選回数']];
-      for (const [binIndex, count] of Object.entries(resultCounts)) {
-        const rangeLabel = `${binIndex * 50}〜${(parseInt(binIndex) + 1) * 50 - 1}G`;
-        csvRows.push([rangeLabel, count]);
-      }
-      return csvRows.map(e => e.join(",")).join("\n");
-    }
-
-    // CSVをダウンロード
-    function downloadCSV() {
-      const csvContent = generateCSV();
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "当選回転数分析.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    // Google Drive OAuth認証開始
     function handleAuthClick() {
       gapi.load('client:auth2', () => {
         gapi.client.init({
           clientId: CLIENT_ID,
+          discoveryDocs: DISCOVERY_DOCS,
           scope: SCOPES
         }).then(() => {
-          gapi.auth2.getAuthInstance().signIn();
+          return gapi.auth2.getAuthInstance().signIn();
+        }).then(() => {
+          console.log("ログイン成功");
+        }).catch(err => {
+          console.error("ログイン失敗", err);
         });
       });
     }
 
-    // Google DriveにCSVをアップロード（マイドライブ直下に保存）
     function uploadToDrive() {
+      // 認証状態か確認
+      if (!gapi.auth2 || !gapi.auth2.getAuthInstance().isSignedIn.get()) {
+        alert("まずGoogleログインをしてください");
+        return;
+      }
+
       const csvContent = generateCSV();
       const blob = new Blob([csvContent], { type: 'text/csv' });
-
       const metadata = {
         name: '当選回転数分析.csv',
         mimeType: 'text/csv',
-        parents: ['root']  // ← ここでマイドライブ直下に保存指定
+        parents: ['root']
       };
-
-      const accessToken = gapi.auth.getToken().access_token;
+      const accessToken = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', blob);
@@ -193,13 +85,6 @@
       }).then(res => res.json())
         .then(val => {
           alert('Google Driveにアップロード完了: ファイルID = ' + val.id);
-          // ファイルを直接開けるリンクを表示
-          const fileUrl = `https://drive.google.com/file/d/${val.id}/view`;
-          const linkElem = document.createElement('a');
-          linkElem.href = fileUrl;
-          linkElem.target = '_blank';
-          linkElem.textContent = 'アップロードファイルを開く';
-          document.body.appendChild(linkElem);
         }).catch(err => {
           alert('アップロードに失敗しました');
           console.error(err);
