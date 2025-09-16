@@ -17,15 +17,7 @@
   <br><br>
   <button onclick="analyze()">分析する</button>
   <button onclick="downloadCSV()">CSVダウンロード</button>
-
-  <div id="g_id_onload"
-    data-client_id="773727067609-lmgihr4fq73ph1o27co2su9ed7rhqn31.apps.googleusercontent.com"
-    data-callback="handleCredentialResponse"
-    data-auto_prompt="false">
-  </div>
-  <div class="g_id_signin" data-type="standard"></div>
-
-  <button onclick="uploadToDrive()">Driveにアップロード</button>
+  <button onclick="getAccessTokenAndUpload()">Driveにアップロード</button>
 
   <h2>分析結果（区分50ごとの当選率）</h2>
   <canvas id="pieChart" width="400" height="400"></canvas>
@@ -33,5 +25,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
-

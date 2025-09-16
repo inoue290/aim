@@ -1,6 +1,35 @@
 let resultCounts = {};
 let chartInstance = null;
-let googleAccessToken = null;
+let tokenClient;
+
+const CLIENT_ID = '773727067609-lmgihr4fq73ph1o27co2su9ed7rhqn31.apps.googleusercontent.com'; // ← ここをGoogle Cloud Consoleで発行したクライアントIDに置き換える
+
+window.onload = () => {
+  addMachine();
+
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: (response) => {
+      console.log("ID Token:", response.credential);
+      alert("✅ Googleログイン成功");
+    }
+  });
+
+  google.accounts.id.prompt();
+
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: (tokenResponse) => {
+      console.log("Access Token:", tokenResponse.access_token);
+      uploadToDrive(tokenResponse.access_token);
+    }
+  });
+};
+
+function getAccessTokenAndUpload() {
+  tokenClient.requestAccessToken();
+}
 
 function addMachine() {
   const container = document.getElementById('machineContainer');
@@ -23,20 +52,17 @@ function addMachine() {
 
 function analyze() {
   const machineDivs = document.querySelectorAll('.machine-entry');
-  const machineData = {};
   const allValues = [];
 
   machineDivs.forEach(div => {
     const machineId = div.querySelector('.machine-id').value.trim();
     const rotations = [...div.querySelectorAll('.rotation')];
-    if (!machineId) return;
 
     const validValues = rotations
       .map(r => parseInt(r.value.trim()))
       .filter(v => !isNaN(v));
 
-    machineData[machineId] = validValues.slice(0, 5);
-    allValues.push(...machineData[machineId]);
+    allValues.push(...validValues.slice(0, 5));
   });
 
   const maxRange = Math.max(...allValues, 0);
@@ -98,31 +124,30 @@ function downloadCSV() {
   document.body.removeChild(link);
 }
 
-// GIS Callback
-function handleCredentialResponse(response) {
-  const jwt = response.credential;
-  console.log("JWT Token:", jwt);
-
-  // Exchange JWT for access_token using OAuth2 token exchange
-  fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + jwt)
-    .then(res => res.json())
-    .then(userInfo => {
-      alert("✅ Googleログイン成功: " + userInfo.email);
-    })
-    .catch(err => {
-      console.error("トークン検証失敗", err);
-      alert("❌ ログイン失敗");
-    });
-}
-
-function uploadToDrive() {
+function uploadToDrive(accessToken) {
   const csvContent = generateCSV();
   const blob = new Blob([csvContent], { type: 'text/csv' });
 
-  const file = new File([blob], "当選回転数分析.csv", {
-    type: 'text/csv'
-  });
+  const metadata = {
+    name: '当選回転数分析.csv',
+    mimeType: 'text/csv',
+    parents: ['root']
+  };
 
-  const picker = window.google.picker; // Google Picker APIが必要な場合、別途対応
-  alert("⚠️ Driveアップロードは別途アクセストークンによる処理が必要です（サーバー側実装が必要）");
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: new Headers({ Authorization: 'Bearer ' + accessToken }),
+    body: form
+  }).then(res => res.json())
+    .then(val => {
+      alert('✅ アップロード成功！ファイルID: ' + val.id);
+    })
+    .catch(err => {
+      console.error('❌ アップロード失敗', err);
+      alert('❌ Driveアップロードに失敗しました');
+    });
 }
