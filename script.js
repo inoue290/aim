@@ -79,7 +79,7 @@ function analyze() {
   }
 
   drawPieChart(resultCounts, allValues.length);
-  displayResultTable(); // 表を表示
+  displayResultTable(allValues.length); // 表を表示
 }
 
 function drawPieChart(data, totalCount) {
@@ -104,7 +104,7 @@ function drawPieChart(data, totalCount) {
   });
 }
 
-function displayResultTable() {
+function displayResultTable(totalCount) {
   const tableContainer = document.getElementById('resultTableContainer');
   const table = document.createElement('table');
   table.style.width = '100%';
@@ -113,7 +113,7 @@ function displayResultTable() {
   // 表のヘッダーを作成
   const header = table.createTHead();
   const headerRow = header.insertRow();
-  headerRow.innerHTML = '<th>区分</th><th>当選回数</th>';
+  headerRow.innerHTML = '<th>区分</th><th>当選回数（%）</th>';
 
   // 表の本体を作成
   const tbody = table.createTBody();
@@ -121,7 +121,8 @@ function displayResultTable() {
   for (const [binIndex, count] of Object.entries(resultCounts)) {
     const row = tbody.insertRow();
     const rangeLabel = `${binIndex * 50}〜${(parseInt(binIndex) + 1) * 50 - 1}G`;
-    row.innerHTML = `<td>${rangeLabel}</td><td>${count}</td>`;
+    const percentage = ((count / totalCount) * 100).toFixed(2); // パーセンテージに変換
+    row.innerHTML = `<td>${rangeLabel}</td><td>${percentage}%</td>`;
   }
 
   tableContainer.innerHTML = ''; // 既存の表をクリア
@@ -129,10 +130,11 @@ function displayResultTable() {
 }
 
 function generateCSV() {
-  const csvRows = [['区分', '当選回数']];
+  const csvRows = [['区分', '当選回数（%）']];
   for (const [binIndex, count] of Object.entries(resultCounts)) {
     const rangeLabel = `${binIndex * 50}〜${(parseInt(binIndex) + 1) * 50 - 1}G`;
-    csvRows.push([rangeLabel, count]);
+    const percentage = ((count / Object.values(resultCounts).reduce((a, b) => a + b, 0)) * 100).toFixed(2); // パーセンテージに変換
+    csvRows.push([rangeLabel, percentage]);
   }
   return csvRows.map(e => e.join(",")).join("\n");
 }
