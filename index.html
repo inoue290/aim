@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>当選回転数分析</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://apis.google.com/js/api.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -26,13 +27,10 @@
     button {
       padding: 10px 15px;
       font-size: 16px;
-      margin-right: 10px;
+      margin: 5px 5px 10px 0;
     }
-    @media screen and (min-width: 600px) {
-      input[type="number"] {
-        width: 18%;
-        margin-right: 1%;
-      }
+    canvas {
+      max-width: 100%;
     }
   </style>
 </head>
@@ -45,12 +43,18 @@
   <br><br>
   <button onclick="analyze()">分析する</button>
   <button onclick="downloadCSV()">CSVダウンロード</button>
+  <button onclick="handleAuthClick()">Googleログイン</button>
+  <button onclick="uploadToDrive()">Driveにアップロード</button>
 
   <h2>分析結果（区分50ごとの当選率）</h2>
   <canvas id="pieChart" width="400" height="400"></canvas>
 
   <script>
+    const CLIENT_ID = '773727067609-lmgihr4fq73ph1o27co2su9ed7rhqn31.apps.googleusercontent.com'; // ←ここを自分のクライアントIDに変更
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
     let resultCounts = {};
+    let chartInstance = null;
 
     function addMachine() {
       const container = document.getElementById('machineContainer');
@@ -90,7 +94,6 @@
         allValues.push(...machineData[machineId]);
       });
 
-      // 分析：50G区分でカウント
       const maxRange = Math.max(...allValues, 0);
       const bins = Math.ceil(maxRange / 50);
       resultCounts = {};
@@ -112,8 +115,12 @@
       const values = Object.values(data);
       const percents = values.map(v => ((v / totalCount) * 100).toFixed(2));
 
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
       const ctx = document.getElementById('pieChart').getContext('2d');
-      new Chart(ctx, {
+      chartInstance = new Chart(ctx, {
         type: 'pie',
         data: {
           labels: labels.map((label, idx) => `${label} (${percents[idx]}%)`),
@@ -125,20 +132,19 @@
       });
     }
 
-    function downloadCSV() {
-      const csvRows = [
-        ['区分', '当選回数']
-      ];
-
+    function generateCSV() {
+      const csvRows = [['区分', '当選回数']];
       for (const [binIndex, count] of Object.entries(resultCounts)) {
         const rangeLabel = `${binIndex * 50}〜${(parseInt(binIndex) + 1) * 50 - 1}G`;
         csvRows.push([rangeLabel, count]);
       }
+      return csvRows.map(e => e.join(",")).join("\n");
+    }
 
-      const csvContent = csvRows.map(e => e.join(",")).join("\n");
+    function downloadCSV() {
+      const csvContent = generateCSV();
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-
       const link = document.createElement("a");
       link.setAttribute("href", url);
       link.setAttribute("download", "当選回転数分析.csv");
@@ -147,7 +153,46 @@
       document.body.removeChild(link);
     }
 
-    // 最初に1台分表示
+    // Google Drive OAuth 認証処理
+    function handleAuthClick() {
+      gapi.load('client:auth2', () => {
+        gapi.client.init({
+          clientId: CLIENT_ID,
+          scope: SCOPES
+        }).then(() => {
+          gapi.auth2.getAuthInstance().signIn();
+        });
+      });
+    }
+
+    // DriveにCSVアップロード
+    function uploadToDrive() {
+      const csvContent = generateCSV();
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+
+      const metadata = {
+        name: '当選回転数分析.csv',
+        mimeType: 'text/csv'
+      };
+
+      const accessToken = gapi.auth.getToken().access_token;
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: new Headers({ Authorization: 'Bearer ' + accessToken }),
+        body: form
+      }).then(res => res.json())
+        .then(val => {
+          alert('Google Driveにアップロード完了: ファイルID = ' + val.id);
+        }).catch(err => {
+          alert('アップロードに失敗しました');
+          console.error(err);
+        });
+    }
+
     window.onload = () => addMachine();
   </script>
 </body>
