@@ -21,11 +21,7 @@ button {
   margin: 5px 5px 10px 0;
 }
 canvas {
-  max-width: 100%;
-}
-/* canvas のサイズをレスポンシブに設定 */
-canvas {
-  max-width: 100%;   /* 最大幅を画面に合わせて調整 */
+  max-width: 50%;   /* 最大幅を画面に合わせて調整 */
   height: auto;      /* 高さは自動で調整 */
   /* 他にも高さの固定値を設定したければ、例えば 300px とか指定可能 */
   /* height: 300px; */
