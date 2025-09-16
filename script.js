@@ -79,6 +79,7 @@ function analyze() {
   }
 
   drawPieChart(resultCounts, allValues.length);
+  displayResultTable(); // 表を表示
 }
 
 function drawPieChart(data, totalCount) {
@@ -91,8 +92,6 @@ function drawPieChart(data, totalCount) {
   }
 
   const ctx = document.getElementById('pieChart').getContext('2d');
-
-  // 円グラフのサイズを画面に合わせてレスポンシブに描画
   chartInstance = new Chart(ctx, {
     type: 'pie',
     data: {
@@ -101,23 +100,32 @@ function drawPieChart(data, totalCount) {
         data: values,
         backgroundColor: labels.map(() => `hsl(${Math.random() * 360}, 70%, 70%)`)
       }]
-    },
-    options: {
-      responsive: true, // レスポンシブ対応
-      plugins: {
-        legend: {
-          position: 'top',
-        },
-        tooltip: {
-          callbacks: {
-            label: (tooltipItem) => {
-              return `${tooltipItem.label}: ${tooltipItem.raw} 回`;
-            }
-          }
-        }
-      }
     }
   });
+}
+
+function displayResultTable() {
+  const tableContainer = document.getElementById('resultTableContainer');
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  table.setAttribute('border', '1');
+
+  // 表のヘッダーを作成
+  const header = table.createTHead();
+  const headerRow = header.insertRow();
+  headerRow.innerHTML = '<th>区分</th><th>当選回数</th>';
+
+  // 表の本体を作成
+  const tbody = table.createTBody();
+
+  for (const [binIndex, count] of Object.entries(resultCounts)) {
+    const row = tbody.insertRow();
+    const rangeLabel = `${binIndex * 50}〜${(parseInt(binIndex) + 1) * 50 - 1}G`;
+    row.innerHTML = `<td>${rangeLabel}</td><td>${count}</td>`;
+  }
+
+  tableContainer.innerHTML = ''; // 既存の表をクリア
+  tableContainer.appendChild(table); // 新しい表を追加
 }
 
 function generateCSV() {
